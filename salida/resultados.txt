@@ -1,0 +1,47 @@
+Cargando datos (puede tardar un poco)...
+Lunes : 529,918 flujos | 2017-07-03 08:55:58 -> 2017-07-03 17:01:34
+Martes: 445,909 flujos | 2017-07-04 08:53:00 -> 2017-07-04 17:00:00
+
+Flujos SSH normales (lunes)      : 2,132
+Flujos SSH de ataque (SSH-Patator): 5,897
+
+=== Medidas descriptivas (intentos por minuto) ===
+periodo          normal   ataque
+n (minutos)     487.000   63.000
+media             4.378   93.603
+mediana           4.000   97.000
+moda              0.000  100.000
+varianza         18.022  191.534
+desv. estándar    4.245   13.840
+mínimo            0.000   23.000
+máximo           21.000  110.000
+varianza/media    4.117    2.046
+Nota: en una Poisson, varianza/media debería ser cercana a 1.
+
+=== Bondad de ajuste a Poisson (H0: los conteos siguen una Poisson) ===
+[normal] lambda = 4.378
+   Chi-cuadrado: X2 = 5239.432, gl = 9, valor p = 0 -> se rechaza H0
+   Índice de dispersión: estadístico = 2000.6, valor p = 4.415e-182 -> se rechaza H0
+[ataque] lambda = 93.603
+   Chi-cuadrado: X2 = 28.572, gl = 9, valor p = 0.000765 -> se rechaza H0
+   Índice de dispersión: estadístico = 126.9, valor p = 4.633e-06 -> se rechaza H0
+
+=== Intervalos de confianza del 95% para la media ===
+[normal] media = 4.378, IC 95% = (4.000, 4.756)
+[ataque] media = 93.603, IC 95% = (90.118, 97.089)
+
+=== Comparación de medias (H0: mu_normal = mu_ataque ; H1: mu_ataque > mu_normal) ===
+t de Welch      : t = 50.864, valor p = 1.735e-53 -> se rechaza H0
+Mann-Whitney U  : U = 30681.0, valor p = 2.347e-40 -> se rechaza H0  (no exige normalidad; sirve de respaldo)
+
+=== Umbral de alerta ===
+Con lambda normal = 4.378 y P(falsa alarma) <= 0.001:
+   Se genera alerta si hay MÁS de 12 intentos en un minuto.
+   Falsas alarmas observadas en el periodo normal: 3.29% de los minutos
+   Minutos de ataque detectados                  : 100.00%
+
+=== Variable continua ===
+Tiempo entre intentos (s) - H0: sigue una exponencial
+[normal] n = 1528, media = 18.823 s, KS = 0.577, valor p = 0
+[ataque] n = 62, media = 60.000 s, KS = 0.632, valor p = 1.545e-24
+(El valor p del KS es aproximado porque la media se estima con los datos.)
