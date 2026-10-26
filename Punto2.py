@@ -11,7 +11,7 @@ np.random.seed(42)          # Reproducibilidad
 n = 60
 alpha = 0.05                # Nivel de significancia
  
-# Parámetros teóricos (los da el enunciado)
+# Parámetros teóricos
 mu_A1, sd_A1 = 175, 30
 mu_B1, sd_B1 = 170, 50
 a_A2, b_A2 = 1.2, 150       # Gamma: alfa, beta  (scipy: a=alfa, scale=beta)
