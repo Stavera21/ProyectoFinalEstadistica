@@ -3,6 +3,9 @@ import numpy as np
 import pandas as pd
 from scipy import stats  # Importante para los intervalos de confianza
 
+print('===========================================================================')
+
+print('\n---------- DATOS BASE ----------')
 df = pd.read_excel('BaseDeDatos.xlsx')
 filtro_marca_1 = df[df['Marca'] == 1]
 filtro_marca_2 = df[df['Marca'] == 2]
@@ -49,9 +52,6 @@ print(f'Los cuartiles de ppm para la Marca 2 son: Q1 (25%): {q1_ppm_marca_2}, Q2
 print(f'Los cuartiles de ppm para la Marca 3 son: Q1 (25%): {q1_ppm_marca_3}, Q2 (50%): {q2_ppm_marca_3}, Q3 (75%): {q3_ppm_marca_3}')
 print(f'Los cuartiles de ppm para la Marca 4 son: Q1 (25%): {q1_ppm_marca_4}, Q2 (50%): {q2_ppm_marca_4}, Q3 (75%): {q3_ppm_marca_4}')
 print(f'Los cuartiles de ppm para la Marca 5 son: Q1 (25%): {q1_ppm_marca_5}, Q2 (50%): {q2_ppm_marca_5}, Q3 (75%): {q3_ppm_marca_5}')
-print('\n')
-print('===========================================================================')
-print('\n')
 
 promedio_ppm_marca_1 = filtro_marca_1['ppm'].mean()
 promedio_ppm_marca_2 = filtro_marca_2['ppm'].mean()
@@ -66,7 +66,6 @@ print(f'El promedio de ppm para la Marca 4 es: {promedio_ppm_marca_4}')
 print(f'El promedio de ppm para la Marca 5 es: {promedio_ppm_marca_5}')
 print('\n')
 print('===========================================================================')
-print('\n')
 
 print('\n---------- ENUNCIADOS b) y c) ----------')
 print('b) Marca que mejor se ajusta a la potencia (2,7 ± 0,22)')
@@ -93,7 +92,6 @@ resumen['Porcentaje_Cumplimiento'] = (
 print(resumen.round(2).to_string(index=False))
 print('\n')
 print('===========================================================================')
-print('\n')
 
 print('\n---------- ENUNCIADO d) ----------')
 print('Para la mejor marca (Marca 5): Intervalos de confianza para media, varianza y proporción')
@@ -113,16 +111,8 @@ li = (n-1) * x.var() / stats.chi2.ppf(1 - alpha/2, n - 1)
 ls = (n-1) * x.var() / stats.chi2.ppf(alpha/2, n - 1)
 print(f'IC varianza: ({li:.5f}, {ls:.5f})')
 
-print('\n---------- ENUNCIADO f) ----------')
-print('Prueba de afirmación del fabricante (80 de cada 100 hornos cumplen < 400 ppm)')
-
-#Proporción de cumplimiento de emisión (<= 400 ppm)
-k = (m5['ppm'] <= 400).sum()
-ic = stats.binomtest(k, n).proportion_ci(confidence_level=0.95, method='exact')
-print(f'p̂ = {k/n:.4f}, IC exacto: ({ic.low:.4f}, {ic.high:.4f})')
 print('\n')
 print('===========================================================================')
-print('\n')
 
 print('\n---------- ENUNCIADO e) ----------')
 print('Diferencia de variabilidad entre marcas 3 y 4 (Prueba F)')
@@ -156,3 +146,18 @@ print('Se rechaza H0' if (F < f_inf or F > f_sup) else 'No se rechaza H0')
 
 # IC para el cociente de varianzas
 print(f'IC cociente: ({F/f_sup:.4f}, {F/f_inf:.4f})')
+
+print('\n')
+print('===========================================================================')
+
+print('\n---------- ENUNCIADO f) ----------')
+print('Prueba de afirmación del fabricante (80 de cada 100 hornos cumplen < 400 ppm)')
+
+#Proporción de cumplimiento de emisión (<= 400 ppm)
+k = (m5['ppm'] <= 400).sum()
+print(f"Hornos que cumplen: {k}")
+ic = stats.binomtest(k, n).proportion_ci(confidence_level=0.95, method='exact')
+print(f'p̂ = {k/n:.4f}, IC exacto: ({ic.low:.4f}, {ic.high:.4f})')
+print('\n')
+print('===========================================================================')
+print('\n')
