@@ -4,7 +4,11 @@ import pandas as pd
 from scipy import stats  # Importante para los intervalos de confianza
 
 df = pd.read_excel('BaseDeDatos.xlsx')
-
+filtro_marca_1 = df[df['Marca'] == 1]
+filtro_marca_2 = df[df['Marca'] == 2]
+filtro_marca_3 = df[df['Marca'] == 3]
+filtro_marca_4 = df[df['Marca'] == 4]
+filtro_marca_5 = df[df['Marca'] == 5]
 print(df['ppm'].describe())
 
 mediana = df['ppm'].median()
@@ -16,15 +20,35 @@ q3 = df['ppm'].quantile(0.75)  # Tercer cuartil (75%)
 print(f'Q1 (25%): {q1}')
 print(f'Q2 (50%): {q2}')
 print(f'Q3 (75%): {q3}')
+
+q1_ppm_marca_1 = filtro_marca_1['ppm'].quantile(0.25)
+q2_ppm_marca_1 = filtro_marca_1['ppm'].quantile(0.50)
+q3_ppm_marca_1 = filtro_marca_1['ppm'].quantile(0.75)
+
+q1_ppm_marca_2 = filtro_marca_2['ppm'].quantile(0.25)
+q2_ppm_marca_2 = filtro_marca_2['ppm'].quantile(0.50)
+q3_ppm_marca_2 = filtro_marca_2['ppm'].quantile(0.75)
+
+q1_ppm_marca_3 = filtro_marca_3['ppm'].quantile(0.25)
+q2_ppm_marca_3 = filtro_marca_3['ppm'].quantile(0.50)
+q3_ppm_marca_3 = filtro_marca_3['ppm'].quantile(0.75)
+
+q1_ppm_marca_4 = filtro_marca_4['ppm'].quantile(0.25)
+q2_ppm_marca_4 = filtro_marca_4['ppm'].quantile(0.50)
+q3_ppm_marca_4 = filtro_marca_4['ppm'].quantile(0.75)
+
+q1_ppm_marca_5 = filtro_marca_5['ppm'].quantile(0.25)
+q2_ppm_marca_5 = filtro_marca_5['ppm'].quantile(0.50)
+q3_ppm_marca_5 = filtro_marca_5['ppm'].quantile(0.75)
+
+print(f'Los cuartiles de ppm para la Marca 1 son: Q1 (25%): {q1_ppm_marca_1}, Q2 (50%): {q2_ppm_marca_1}, Q3 (75%): {q3_ppm_marca_1}')
+print(f'Los cuartiles de ppm para la Marca 2 son: Q1 (25%): {q1_ppm_marca_2}, Q2 (50%): {q2_ppm_marca_2}, Q3 (75%): {q3_ppm_marca_2}')
+print(f'Los cuartiles de ppm para la Marca 3 son: Q1 (25%): {q1_ppm_marca_3}, Q2 (50%): {q2_ppm_marca_3}, Q3 (75%): {q3_ppm_marca_3}')
+print(f'Los cuartiles de ppm para la Marca 4 son: Q1 (25%): {q1_ppm_marca_4}, Q2 (50%): {q2_ppm_marca_4}, Q3 (75%): {q3_ppm_marca_4}')
+print(f'Los cuartiles de ppm para la Marca 5 son: Q1 (25%): {q1_ppm_marca_5}, Q2 (50%): {q2_ppm_marca_5}, Q3 (75%): {q3_ppm_marca_5}')
 print('\n')
 print('===========================================================================')
 print('\n')
-
-filtro_marca_1 = df[df['Marca'] == 1]
-filtro_marca_2 = df[df['Marca'] == 2]
-filtro_marca_3 = df[df['Marca'] == 3]
-filtro_marca_4 = df[df['Marca'] == 4]
-filtro_marca_5 = df[df['Marca'] == 5]
 
 promedio_ppm_marca_1 = filtro_marca_1['ppm'].mean()
 promedio_ppm_marca_2 = filtro_marca_2['ppm'].mean()
