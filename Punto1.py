@@ -14,6 +14,9 @@ print(df['ppm'].describe())
 mediana = df['ppm'].median()
 print(f'Mediana: {mediana}')
 
+print('\n---------- ENUNCIADO a) ----------')
+print('Análisis para el diagrama de cajas (ppm) y menor emisión de contaminantes')
+
 q1 = df['ppm'].quantile(0.25)  # Primer cuartil (25%)
 q2 = df['ppm'].quantile(0.50)  # Segundo cuartil (50%)
 q3 = df['ppm'].quantile(0.75)  # Tercer cuartil (75%)
@@ -65,6 +68,10 @@ print('\n')
 print('===========================================================================')
 print('\n')
 
+print('\n---------- ENUNCIADOS b) y c) ----------')
+print('b) Marca que mejor se ajusta a la potencia (2,7 ± 0,22)')
+print('c) Definición de la marca con mejor desempeño general')
+
 inf, sup = 2.7 - 0.22, 2.7 + 0.22  # Límites de potencia
 
 resumen = (
@@ -87,6 +94,10 @@ print(resumen.round(2).to_string(index=False))
 print('\n')
 print('===========================================================================')
 print('\n')
+
+print('\n---------- ENUNCIADO d) ----------')
+print('Para la mejor marca (Marca 5): Intervalos de confianza para media, varianza y proporción')
+
 m5 = df[df['Marca'] == 5]
 x = m5['Potencia']
 n = len(x)
@@ -102,6 +113,9 @@ li = (n-1) * x.var() / stats.chi2.ppf(1 - alpha/2, n - 1)
 ls = (n-1) * x.var() / stats.chi2.ppf(alpha/2, n - 1)
 print(f'IC varianza: ({li:.5f}, {ls:.5f})')
 
+print('\n---------- ENUNCIADO f) ----------')
+print('Prueba de afirmación del fabricante (80 de cada 100 hornos cumplen < 400 ppm)')
+
 #Proporción de cumplimiento de emisión (<= 400 ppm)
 k = (m5['ppm'] <= 400).sum()
 ic = stats.binomtest(k, n).proportion_ci(confidence_level=0.95, method='exact')
@@ -109,6 +123,10 @@ print(f'p̂ = {k/n:.4f}, IC exacto: ({ic.low:.4f}, {ic.high:.4f})')
 print('\n')
 print('===========================================================================')
 print('\n')
+
+print('\n---------- ENUNCIADO e) ----------')
+print('Diferencia de variabilidad entre marcas 3 y 4 (Prueba F)')
+
 varianza_potencia_m3 = filtro_marca_3['Potencia'].var()
 desviacion_potencia_m3 = math.sqrt(varianza_potencia_m3)
 varianza_potencia_m4 = filtro_marca_4['Potencia'].var()
