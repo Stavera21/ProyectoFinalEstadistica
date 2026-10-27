@@ -1,4 +1,0 @@
-input_size,algorithm,n_observations,shapiro_statistic,shapiro_p_value,note
-1000,Bubble Sort,20,0.9796144674288286,0.9290258334791888,Diagnóstico de compatibilidad con normalidad; no es necesario que los tiempos originales sean normales para toda estadística.
-1000,Insertion Sort,20,0.9487829235200577,0.3489932724185939,Diagnóstico de compatibilidad con normalidad; no es necesario que los tiempos originales sean normales para toda estadística.
-1000,Merge Sort,20,0.9326282493255061,0.17346850773379224,Diagnóstico de compatibilidad con normalidad; no es necesario que los tiempos originales sean normales para toda estadística.

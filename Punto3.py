@@ -16,12 +16,13 @@ IMPORTANTE:
 - Los tiempos son mediciones nuevas obtenidas al ejecutar este script.
 - No cambie los datos para forzar una distribución.
 - Los tamaños/repeticiones se pueden ajustar después de una prueba piloto.
+- La bondad de ajuste (KS) se realiza en Excel con @RISK usando datos_para_RISK.xlsx.
+- Los interruptores CALCULAR_IC y CALCULAR_F permiten quitar esas secciones si no se vieron en clase.
 """
 
 from pathlib import Path
 import time
 import random
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -30,9 +31,11 @@ from scipy import stats
 
 SEED = 20261027
 SIZES = [100, 250, 500, 1000]
-SAMPLES_PER_SIZE = 20
+SAMPLES_PER_SIZE = 100      # muestras independientes por tamaño (antes 20)
 TECHNICAL_REPEATS = 3
 ALPHA = 0.05
+CALCULAR_IC = True   # intervalos de confianza de la media (t de Student)
+CALCULAR_F = True    # prueba F de igualdad de varianzas entre pares de algoritmos
 DATA_FILE_CANDIDATES = [
     "Online Retail.xlsx",
     "online_retail.xlsx",
@@ -42,6 +45,13 @@ OUT = Path("resultados_algoritmos")
 OUT.mkdir(exist_ok=True)
 
 rng = random.Random(SEED)
+
+SHORT = {"Bubble Sort": "Bubble", "Insertion Sort": "Insertion", "Merge Sort": "Merge"}
+
+
+def save_excel(df, filename, sheet_name="datos"):
+    """Guarda un DataFrame como .xlsx dentro de la carpeta de resultados."""
+    df.to_excel(OUT / filename, index=False, sheet_name=sheet_name)
 
 
 # ---------- Algoritmos: solo se cronometra el ordenamiento ----------
@@ -162,7 +172,7 @@ def collect_measurements(values):
                     elapsed = timed_call(fn, sample)
                     timings.append(elapsed)
                     rows.append({
-                        "sample_id": f"n{n}_s{sample_num:02d}",
+                        "sample_id": f"n{n}_s{sample_num:03d}",
                         "input_size": n,
                         "algorithm": algo_name,
                         "repeat_id": rep,
@@ -170,12 +180,10 @@ def collect_measurements(values):
                         "runtime_milliseconds": elapsed * 1000,
                         "correctness_check": True,
                     })
-                print(
-                    f"  muestra {sample_num:02d}, {algo_name}: "
-                    f"mediana={np.median(timings)*1000:.4f} ms"
-                )
+            if sample_num % 10 == 0:
+                print(f"  {sample_num}/{SAMPLES_PER_SIZE} muestras listas")
     df = pd.DataFrame(rows)
-    df.to_csv(OUT / "mediciones_individuales.csv", index=False)
+    save_excel(df, "mediciones_individuales.xlsx", "mediciones")
     # Resumen por muestra/algoritmo: mediana de las repeticiones técnicas.
     per_sample = (
         df.groupby(["sample_id", "input_size", "algorithm"], as_index=False)
@@ -183,7 +191,7 @@ def collect_measurements(values):
                runtime_milliseconds=("runtime_milliseconds", "median"),
                technical_repeats=("repeat_id", "count"))
     )
-    per_sample.to_csv(OUT / "medianas_por_muestra.csv", index=False)
+    save_excel(per_sample, "medianas_por_muestra.xlsx", "medianas")
     return df, per_sample
 
 
@@ -204,13 +212,15 @@ def descriptive_analysis(per_sample):
         per_sample.groupby(["input_size", "algorithm"])["runtime_milliseconds"]
         .var().to_numpy()
     )
-    summary.to_csv(OUT / "resumen_descriptivo.csv", index=False)
+    summary["cv"] = summary["std_ms"] / summary["mean_ms"]  # dispersión relativa
+    save_excel(summary, "resumen_descriptivo.xlsx", "resumen")
     print("\n" + "=" * 88)
     print("ESTADÍSTICA DESCRIPTIVA: ¿CUÁNTO TARDAN LOS ALGORITMOS?".center(88))
     print("=" * 88)
     print("Variables: input_size = cantidad de elementos; runtime_milliseconds = tiempo de ejecución.")
     print("mean_ms es el promedio de tiempos; median_ms es el valor central; std_ms mide dispersión.")
     print("min_ms y max_ms muestran los extremos observados; variance_ms2 mide variabilidad al cuadrado.")
+    print("cv = std_ms / mean_ms es la dispersión relativa: permite comparar variabilidad entre algoritmos con tiempos muy distintos.")
     print("Se interpretan los tiempos de cada algoritmo por separado para cada tamaño de entrada.")
     print(summary.to_string(index=False, float_format=lambda x: f"{x:.6f}"))
     return summary
@@ -276,131 +286,91 @@ def plot_results(per_sample, summary):
     plt.close(fig)
 
 
-def paired_comparisons(per_sample):
-    """
-    Comparaciones emparejadas: los algoritmos comparten sample_id.
-    La prueba t pareada se aplica a diferencias por muestra.
-    Shapiro-Wilk se informa como diagnóstico de normalidad de las diferencias,
-    no como prueba de que los datos 'deban' ser normales.
-    """
+PAIRS = [
+    ("Bubble Sort", "Insertion Sort"),
+    ("Bubble Sort", "Merge Sort"),
+    ("Insertion Sort", "Merge Sort"),
+]
+
+
+def confidence_intervals(per_sample):
+    """Intervalo de confianza del 95% para el tiempo medio de cada algoritmo y tamaño."""
     print("\n" + "=" * 88)
-    print("PRUEBAS DE HIPÓTESIS PAREADAS E INTERVALOS DE CONFIANZA".center(88))
+    print("INTERVALOS DE CONFIANZA PARA EL TIEMPO MEDIO".center(88))
     print("=" * 88)
-    print("Pregunta: ¿la diferencia media de tiempo entre dos algoritmos es distinta de cero?")
-    print("H0: media(D)=0. H1: media(D)≠0, donde D = tiempo_A - tiempo_B en la misma muestra.")
-    print("La comparación es pareada porque ambos algoritmos ordenan exactamente la misma muestra.")
-    print(f"Nivel de significación alpha={ALPHA:.2f}. Un valor p menor que alpha aporta evidencia de diferencia media.")
-    print("El IC del 95% estima un rango plausible para la diferencia media; si incluye 0, no indica diferencia al nivel bilateral del 5% bajo el mismo modelo.")
+    print("Para cada algoritmo y tamaño: media ± t(0.975, n-1) · s/√n, con n = número de muestras.")
+    print("Interpretación: con 95% de confianza, el tiempo medio verdadero está dentro del intervalo.")
+    print("Si dos intervalos no se traslapan, los tiempos medios son claramente distintos.")
     rows = []
     for n in SIZES:
-        part = per_sample[per_sample["input_size"] == n]
-        wide = part.pivot(index="sample_id", columns="algorithm",
-                          values="runtime_milliseconds")
-        pairs = [
-            ("Bubble Sort", "Insertion Sort"),
-            ("Bubble Sort", "Merge Sort"),
-            ("Insertion Sort", "Merge Sort"),
-        ]
-        for a, b in pairs:
-            differences = (wide[a] - wide[b]).dropna().to_numpy()
-            if len(differences) < 3:
-                continue
-            shapiro_p = np.nan
-            if len(differences) >= 3:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    shapiro_p = stats.shapiro(differences).pvalue
-            t_res = stats.ttest_rel(wide[a], wide[b], nan_policy="omit")
-            mean_diff = float(np.mean(differences))
-            sd_diff = float(np.std(differences, ddof=1))
-            se = sd_diff / np.sqrt(len(differences))
-            tcrit = stats.t.ppf(0.975, df=len(differences)-1)
-            ci_low = mean_diff - tcrit * se
-            ci_high = mean_diff + tcrit * se
+        for algo in ALGORITHMS:
+            x = per_sample.loc[(per_sample["input_size"] == n) &
+                               (per_sample["algorithm"] == algo),
+                               "runtime_milliseconds"].to_numpy()
+            k = len(x)
+            mean, sd = float(x.mean()), float(x.std(ddof=1))
+            tcrit = float(stats.t.ppf(0.975, df=k - 1))
+            half = tcrit * sd / np.sqrt(k)
             rows.append({
-                "input_size": n,
-                "comparison": f"{a} - {b}",
-                "n_pairs": len(differences),
-                "mean_difference_ms": mean_diff,
-                "ci95_low_ms": ci_low,
-                "ci95_high_ms": ci_high,
-                "paired_t_statistic": float(t_res.statistic),
-                "p_value_paired_t": float(t_res.pvalue),
-                "shapiro_p_differences": float(shapiro_p),
-                "interpretation_note": (
-                    "p < 0.05 indica evidencia de diferencia media bajo los supuestos; "
-                    "no prueba causalidad ni garantiza relevancia práctica."
-                ),
+                "input_size": n, "algorithm": algo, "n": k, "mean_ms": mean,
+                "std_ms": sd, "t_critical": tcrit,
+                "ci95_low_ms": mean - half, "ci95_high_ms": mean + half,
             })
     result = pd.DataFrame(rows)
-    result.to_csv(OUT / "comparaciones_pareadas.csv", index=False)
-    print("\nRESULTADOS: cada fila compara un par de algoritmos para un tamaño de entrada.")
-    print("mean_difference_ms > 0 significa que A tardó más en promedio que B; < 0 significa que A tardó menos.")
-    print("shapiro_p_differences diagnostica normalidad de las diferencias; no prueba igualdad de medias.")
-    if not result.empty:
-        print(result.to_string(index=False, float_format=lambda x: f"{x:.6g}"))
-    print("\nBONDAD DE AJUSTE: ANDERSON-DARLING PARA LAS DIFERENCIAS")
-    print("Se contrasta si las diferencias D son compatibles con una distribución normal.")
-    print("H0: las diferencias siguen una distribución normal; H1: no siguen una distribución normal.")
-    print("La prueba de Anderson-Darling entrega valores críticos, no un valor p directo en esta implementación.")
+    save_excel(result, "intervalos_confianza.xlsx", "IC_95")
+    print(result.to_string(index=False, float_format=lambda x: f"{x:.6g}"))
+    return result
+
+
+def variance_tests(per_sample):
+    """Prueba F bilateral de igualdad de varianzas entre pares de algoritmos, por tamaño."""
+    print("\n" + "=" * 88)
+    print("PRUEBA F DE IGUALDAD DE VARIANZAS".center(88))
+    print("=" * 88)
+    print("H0: varianza_A = varianza_B.  H1: varianza_A ≠ varianza_B  (bilateral).")
+    print(f"Estadístico: F = s²_A / s²_B, con gl = n-1 en cada grupo. Nivel de significación alpha={ALPHA:.2f}.")
+    print("Regla: si F queda dentro del intervalo (F_inferior ; F_superior) no se rechaza H0; si queda fuera, se rechaza.")
+    print("Supuesto: cada grupo debe ser aproximadamente normal (se revisa con el ajuste en @RISK).")
+    print("Ojo: si los tiempos medios son muy distintos, las varianzas también lo serán; por eso se muestra el cv en el resumen.")
+    rows = []
     for n in SIZES:
         part = per_sample[per_sample["input_size"] == n]
         wide = part.pivot(index="sample_id", columns="algorithm", values="runtime_milliseconds")
-        for a, b in [("Bubble Sort", "Insertion Sort"), ("Bubble Sort", "Merge Sort"), ("Insertion Sort", "Merge Sort")]:
-            differences = (wide[a] - wide[b]).dropna().to_numpy()
-            if len(differences) < 5:
-                print(f"n={n}, {a} - {b}: no hay suficientes diferencias para este diagnóstico.")
-                continue
-            ad = stats.anderson(differences, dist="norm")
-            idx = int(np.argmin(np.abs(ad.significance_level - 5.0)))
-            critical = float(ad.critical_values[idx])
-            if ad.statistic > critical:
-                conclusion = "Se rechaza la normalidad al nivel aproximado del 5%; interpretar con cautela la prueba t pareada."
-            else:
-                conclusion = "No se rechaza la normalidad al nivel aproximado del 5%; esto no demuestra normalidad perfecta."
-            print(f"n={n}, {a} - {b}: estadístico AD={ad.statistic:.6g}; valor crítico 5%={critical:.6g}. {conclusion}")
-    return result
-
-
-def distribution_diagnostics(per_sample):
-    """
-    Diagnóstico de normalidad de los tiempos para el tamaño mayor.
-    Shapiro-Wilk es un diagnóstico complementario, no una orden para forzar
-    los datos a normalidad. En muestras pequeñas tiene potencia limitada.
-    """
-    n = max(SIZES)
-    rows = []
-    for algo in ALGORITHMS:
-        vals = per_sample.loc[
-            (per_sample["input_size"] == n) &
-            (per_sample["algorithm"] == algo),
-            "runtime_milliseconds"
-        ].dropna().to_numpy()
-        if 3 <= len(vals) <= 5000:
-            res = stats.shapiro(vals)
+        for a, b in PAIRS:
+            xa, xb = wide[a].dropna().to_numpy(), wide[b].dropna().to_numpy()
+            va, vb = float(xa.var(ddof=1)), float(xb.var(ddof=1))
+            F = va / vb
+            df1, df2 = len(xa) - 1, len(xb) - 1
+            f_lo = float(stats.f.ppf(ALPHA / 2, df1, df2))
+            f_hi = float(stats.f.ppf(1 - ALPHA / 2, df1, df2))
+            p = float(2 * min(stats.f.cdf(F, df1, df2), stats.f.sf(F, df1, df2)))
             rows.append({
-                "input_size": n,
-                "algorithm": algo,
-                "n_observations": len(vals),
-                "shapiro_statistic": float(res.statistic),
-                "shapiro_p_value": float(res.pvalue),
-                "note": (
-                    "Diagnóstico de compatibilidad con normalidad; no es necesario "
-                    "que los tiempos originales sean normales para toda estadística."
-                ),
+                "input_size": n, "comparison": f"{a} / {b}",
+                "var_A_ms2": va, "var_B_ms2": vb, "F": F, "gl_A": df1, "gl_B": df2,
+                "F_inferior": f_lo, "F_superior": f_hi, "valor_p": min(p, 1.0),
+                "decision": "Se rechaza H0" if not (f_lo < F < f_hi) else "No se rechaza H0",
             })
     result = pd.DataFrame(rows)
-    result.to_csv(OUT / "diagnostico_distribucion.csv", index=False)
-    print("\n" + "=" * 88)
-    print("DIAGNÓSTICO DE NORMALIDAD DE LOS TIEMPOS INDIVIDUALES".center(88))
-    print("=" * 88)
-    print("Se revisan los tiempos individuales de cada algoritmo para el tamaño máximo.")
-    print("H0: los tiempos son compatibles con normalidad; H1: no son compatibles con normalidad.")
-    print("Si p < 0.05 se rechaza H0; si p >= 0.05, no hay evidencia suficiente para rechazarla.")
-    print("No rechazar H0 no demuestra normalidad, y los tiempos individuales no sustituyen revisar las diferencias para la prueba pareada.")
-    if not result.empty:
-        print(result.to_string(index=False, float_format=lambda x: f"{x:.6g}"))
+    save_excel(result, "prueba_F_varianzas.xlsx", "prueba_F")
+    print(result.to_string(index=False, float_format=lambda x: f"{x:.6g}"))
     return result
+
+
+def build_risk_workbook(per_sample):
+    """
+    Crea datos_para_RISK.xlsx: una columna por grupo (algoritmo x tamaño),
+    lista para seleccionarla en @RISK (Ajustar distribuciones a datos).
+    """
+    times = {}
+    for n in SIZES:
+        for algo in ALGORITHMS:
+            vals = (per_sample[(per_sample["input_size"] == n) &
+                               (per_sample["algorithm"] == algo)]
+                    .sort_values("sample_id")["runtime_milliseconds"].to_numpy())
+            times[f"{SHORT[algo]}_n{n}"] = vals
+    pd.DataFrame(times).to_excel(OUT / "datos_para_RISK.xlsx", sheet_name="tiempos", index=False)
+    print("\nSe creó datos_para_RISK.xlsx: hoja 'tiempos' con 12 columnas (algoritmo y tamaño).")
+    print("En @RISK se ajusta una columna a la vez; cada columna tiene", SAMPLES_PER_SIZE, "datos independientes.")
 
 
 def main():
@@ -414,33 +384,36 @@ def main():
     print("Las secciones del análisis se separan mediante print; todo el procedimiento está en este archivo Python.")
     print("\nDISEÑO EXPERIMENTAL")
     print(f"Tamaños: {SIZES}; muestras independientes por tamaño: {SAMPLES_PER_SIZE}; repeticiones técnicas por algoritmo y muestra: {TECHNICAL_REPEATS}.")
-    print("En cada muestra se ejecutan los tres algoritmos sobre los mismos valores, lo que permite comparaciones pareadas.")
+    print("En cada muestra se ejecutan los tres algoritmos sobre los mismos valores, para comparar los algoritmos en igualdad de condiciones.")
     print("Se usa la mediana de las repeticiones técnicas como tiempo representativo por muestra, reduciendo el efecto de una medición aislada.")
     values = load_values()
     raw, per_sample = collect_measurements(values)
     summary = descriptive_analysis(per_sample)
     plot_results(per_sample, summary)
-    paired = paired_comparisons(per_sample)
-    diagnostics = distribution_diagnostics(per_sample)
+    if CALCULAR_IC:
+        confidence_intervals(per_sample)
+    if CALCULAR_F:
+        variance_tests(per_sample)
+    build_risk_workbook(per_sample)
 
     print("\n" + "=" * 88)
     print("RESUMEN DE DECISIONES Y LIMITACIONES".center(88))
     print("=" * 88)
     print("1. Descriptivos: permiten comparar centro y variabilidad de los tiempos, pero no prueban diferencias por sí solos.")
-    print("2. Shapiro-Wilk: diagnostica normalidad de los tiempos para n máximo; no determina por sí solo qué prueba comparativa usar.")
-    print("3. Anderson-Darling: evalúa la compatibilidad de las diferencias emparejadas con normalidad, como diagnóstico relacionado con el supuesto de la prueba t pareada.")
-    print("4. Prueba t pareada: contrasta si la diferencia media de tiempos es cero. Si la normalidad de las diferencias se cuestiona, la conclusión debe expresarse con cautela.")
-    print("5. Intervalos de confianza: muestran la incertidumbre de la diferencia media; se interpretan junto al valor p y al contexto práctico.")
-    print("6. No se incluye regresión lineal ni log-log porque el objetivo principal es comparar tiempos; no se añade un modelo que no sea necesario para responder la pregunta del proyecto.")
-    print("7. No se añade una prueba F automáticamente: compara varianzas bajo supuestos específicos y no responde a la misma pregunta que comparar tiempos medios. Su inclusión debe justificarse por el objetivo del trabajo y lo visto en clase.")
-    print("8. Se realizan múltiples comparaciones (tres pares por cuatro tamaños); los valores p deben interpretarse considerando que hay varias pruebas.")
+    print("2. Bondad de ajuste: se realiza en Excel con @RISK (prueba KS) sobre datos_para_RISK.xlsx, un grupo por columna.")
+    print("3. Intervalos de confianza: muestran la incertidumbre del tiempo medio de cada algoritmo; intervalos que no se traslapan indican tiempos medios distintos.")
+    print("4. Prueba F: compara varianzas de dos algoritmos con el intervalo de no rechazo; supone normalidad y, con tiempos medios muy distintos, casi siempre rechazará H0.")
+    print("5. No se incluye regresión lineal ni log-log porque el objetivo principal es comparar tiempos; no se añade un modelo que no sea necesario para responder la pregunta del proyecto.")
+    print("6. No se usa la prueba t pareada porque no se ha visto en el curso.")
+    print("7. Se realizan múltiples comparaciones (tres pares por cuatro tamaños); las conclusiones deben considerar que hay varias pruebas.")
     print("\nARCHIVOS GENERADOS")
     print("Todos los archivos de resultados se guardan dentro de:", OUT.resolve())
-    print("- mediciones_individuales.csv: cada medición técnica")
-    print("- medianas_por_muestra.csv: una mediana por algoritmo y muestra")
-    print("- resumen_descriptivo.csv: medias, medianas, dispersión y extremos")
-    print("- comparaciones_pareadas.csv: prueba t, intervalos y Shapiro-Wilk sobre diferencias")
-    print("- diagnostico_distribucion.csv: Shapiro-Wilk sobre tiempos individuales")
+    print("- mediciones_individuales.xlsx: cada medición técnica")
+    print("- medianas_por_muestra.xlsx: una mediana por algoritmo y muestra")
+    print("- resumen_descriptivo.xlsx: medias, medianas, dispersión y extremos")
+    print("- intervalos_confianza.xlsx: IC 95% del tiempo medio (si CALCULAR_IC = True)")
+    print("- prueba_F_varianzas.xlsx: prueba F entre pares de algoritmos (si CALCULAR_F = True)")
+    print("- datos_para_RISK.xlsx: tiempos, una columna por grupo, para ajustar en @RISK")
     print("- tres gráficos PNG descriptivos")
     print("\nFin del análisis.")
 
