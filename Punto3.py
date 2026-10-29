@@ -1,21 +1,10 @@
 """
-Proyecto Estadística I: comparación de algoritmos de ordenamiento
 Literal C: análisis estadístico reproducible.
-
-Antes de ejecutar:
-1. Descargue Online Retail desde:
-   https://archive.ics.uci.edu/dataset/352/online+retail
-2. Coloque el archivo xlsx en la misma carpeta que este script.
-3. Instale dependencias:
-   python -m pip install pandas numpy matplotlib scipy openpyxl
-4. Ejecute:
-   python analisis_estadistico_algoritmos.py
 
 IMPORTANTE:
 - El conjunto público aporta los valores de entrada.
 - Los tiempos son mediciones nuevas obtenidas al ejecutar este script.
-- No cambie los datos para forzar una distribución.
-- Los tamaños/repeticiones se pueden ajustar después de una prueba piloto.
+- No cambiar los datos para forzar una distribución.
 - La bondad de ajuste (KS) se realiza en Excel con @RISK usando datos_para_RISK.xlsx.
 - Los interruptores CALCULAR_IC y CALCULAR_F permiten quitar esas secciones si no se vieron en clase.
 """
@@ -323,15 +312,15 @@ def confidence_intervals(per_sample):
 
 
 def variance_tests(per_sample):
-    """Prueba F bilateral de igualdad de varianzas entre pares de algoritmos, por tamaño."""
-    print("\n" + "=" * 88)
+    """Prueba F bilateral de igualdad de varianzas mediante valores críticos."""
+    print("\\n" + "=" * 88)
     print("PRUEBA F DE IGUALDAD DE VARIANZAS".center(88))
     print("=" * 88)
-    print("H0: varianza_A = varianza_B.  H1: varianza_A ≠ varianza_B  (bilateral).")
-    print(f"Estadístico: F = s²_A / s²_B, con gl = n-1 en cada grupo. Nivel de significación alpha={ALPHA:.2f}.")
-    print("Regla: si F queda dentro del intervalo (F_inferior ; F_superior) no se rechaza H0; si queda fuera, se rechaza.")
-    print("Supuesto: cada grupo debe ser aproximadamente normal (se revisa con el ajuste en @RISK).")
-    print("Ojo: si los tiempos medios son muy distintos, las varianzas también lo serán; por eso se muestra el cv en el resumen.")
+    print("H0: varianza_A = varianza_B.  H1: varianza_A ≠ varianza_B (bilateral).")
+    print(f"Estadístico: F = s²_A / s²_B; gl_A = n_A - 1; gl_B = n_B - 1; alpha={ALPHA:.2f}.")
+    print("Regla de decisión: se rechaza H0 si F < F_inferior o F > F_superior.")
+    print("Si F queda entre ambos límites críticos, no se rechaza H0.")
+    print("Los límites críticos se calculan automáticamente para una prueba bilateral.")
     rows = []
     for n in SIZES:
         part = per_sample[per_sample["input_size"] == n]
@@ -341,14 +330,23 @@ def variance_tests(per_sample):
             va, vb = float(xa.var(ddof=1)), float(xb.var(ddof=1))
             F = va / vb
             df1, df2 = len(xa) - 1, len(xb) - 1
+
+            # Valores críticos para una prueba bilateral con alpha = 0.05.
+            # Se reparte alpha/2 en cada cola de la distribución F.
             f_lo = float(stats.f.ppf(ALPHA / 2, df1, df2))
             f_hi = float(stats.f.ppf(1 - ALPHA / 2, df1, df2))
-            p = float(2 * min(stats.f.cdf(F, df1, df2), stats.f.sf(F, df1, df2)))
+
             rows.append({
-                "input_size": n, "comparison": f"{a} / {b}",
-                "var_A_ms2": va, "var_B_ms2": vb, "F": F, "gl_A": df1, "gl_B": df2,
-                "F_inferior": f_lo, "F_superior": f_hi, "valor_p": min(p, 1.0),
-                "decision": "Se rechaza H0" if not (f_lo < F < f_hi) else "No se rechaza H0",
+                "input_size": n,
+                "comparison": f"{a} / {b}",
+                "var_A_ms2": va,
+                "var_B_ms2": vb,
+                "F": F,
+                "gl_A": df1,
+                "gl_B": df2,
+                "F_inferior": f_lo,
+                "F_superior": f_hi,
+                "decision": "Se rechaza H0" if (F < f_lo or F > f_hi) else "No se rechaza H0",
             })
     result = pd.DataFrame(rows)
     save_excel(result, "prueba_F_varianzas.xlsx", "prueba_F")
@@ -402,7 +400,7 @@ def main():
     print("1. Descriptivos: permiten comparar centro y variabilidad de los tiempos, pero no prueban diferencias por sí solos.")
     print("2. Bondad de ajuste: se realiza en Excel con @RISK (prueba KS) sobre datos_para_RISK.xlsx, un grupo por columna.")
     print("3. Intervalos de confianza: muestran la incertidumbre del tiempo medio de cada algoritmo; intervalos que no se traslapan indican tiempos medios distintos.")
-    print("4. Prueba F: compara varianzas de dos algoritmos con el intervalo de no rechazo; supone normalidad y, con tiempos medios muy distintos, casi siempre rechazará H0.")
+    print("4. Prueba F: compara varianzas de dos algoritmos mediante F y los valores críticos; requiere los supuestos de la prueba.")
     print("5. No se incluye regresión lineal ni log-log porque el objetivo principal es comparar tiempos; no se añade un modelo que no sea necesario para responder la pregunta del proyecto.")
     print("6. No se usa la prueba t pareada porque no se ha visto en el curso.")
     print("7. Se realizan múltiples comparaciones (tres pares por cuatro tamaños); las conclusiones deben considerar que hay varias pruebas.")
