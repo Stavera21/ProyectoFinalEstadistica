@@ -111,6 +111,14 @@ li = (n-1) * x.var() / stats.chi2.ppf(1 - alpha/2, n - 1)
 ls = (n-1) * x.var() / stats.chi2.ppf(alpha/2, n - 1)
 print(f'IC varianza: ({li:.5f}, {ls:.5f})')
 
+#Proporción de cumplimiento de emisión (<= 400 ppm)
+hornos_totales = len((m5))
+print(f"Total de hornos de la marca 5: {hornos_totales}")
+k = (m5['ppm'] <= 400).sum()
+print(f"Hornos que cumplen: {k}")
+ic = stats.binomtest(k, n).proportion_ci(confidence_level=0.95, method='exact')
+print(f'p̂ = {k/n:.4f}, IC exacto: ({ic.low:.4f}, {ic.high:.4f})')
+
 print('\n')
 print('===========================================================================')
 

@@ -1,12 +1,12 @@
 """
-Literal C: análisis estadístico reproducible.
+Literal C: análisis estadístico.
 
 IMPORTANTE:
 - El conjunto público aporta los valores de entrada.
 - Los tiempos son mediciones nuevas obtenidas al ejecutar este script.
 - No cambiar los datos para forzar una distribución.
 - La bondad de ajuste (KS) se realiza en Excel con @RISK usando datos_para_RISK.xlsx.
-- Los interruptores CALCULAR_IC y CALCULAR_F permiten quitar esas secciones si no se vieron en clase.
+- Los interruptores CALCULAR_IC y CALCULAR_F permiten quitar esas secciones si se desea implementear alguna diferete.
 """
 
 from pathlib import Path
@@ -20,11 +20,11 @@ from scipy import stats
 
 SEED = 20261027
 SIZES = [100, 250, 500, 1000]
-SAMPLES_PER_SIZE = 100      # muestras independientes por tamaño (antes 20)
+SAMPLES_PER_SIZE = 100      # muestras independientes por tamaño 
 TECHNICAL_REPEATS = 3
 ALPHA = 0.05
-CALCULAR_IC = True   # intervalos de confianza de la media (t de Student)
-CALCULAR_F = True    # prueba F de igualdad de varianzas entre pares de algoritmos
+CALCULAR_IC = True   
+CALCULAR_F = True    
 DATA_FILE_CANDIDATES = [
     "Online Retail.xlsx",
     "online_retail.xlsx",
@@ -39,7 +39,6 @@ SHORT = {"Bubble Sort": "Bubble", "Insertion Sort": "Insertion", "Merge Sort": "
 
 
 def save_excel(df, filename, sheet_name="datos"):
-    """Guarda un DataFrame como .xlsx dentro de la carpeta de resultados."""
     df.to_excel(OUT / filename, index=False, sheet_name=sheet_name)
 
 
@@ -132,8 +131,7 @@ def load_values():
 
 
 def timed_call(fn, input_values):
-    # Se hace la copia antes de iniciar el cronómetro para medir el algoritmo
-    # y no el coste de copiar la entrada.
+    # Se hace la copia antes de iniciar el cronómetro para medir el algoritmo y no el coste de copiar la entrada.
     input_copy = input_values.copy()
     start = time.perf_counter()
     result = fn(input_copy)
@@ -150,8 +148,7 @@ def collect_measurements(values):
         for sample_num in range(1, SAMPLES_PER_SIZE + 1):
             sample = rng.sample(values, n)
             # La misma muestra se usa para todos los algoritmos.
-            # Se alterna el orden de ejecución para reducir sesgo sistemático
-            # por calentamiento/carga del equipo.
+            # Se alterna el orden de ejecución para reducir sesgo sistemático por carga del equipo donde se ejecuta.
             algo_names = list(ALGORITHMS.keys())
             rng.shuffle(algo_names)
             for algo_name in algo_names:
@@ -201,7 +198,6 @@ def descriptive_analysis(per_sample):
         per_sample.groupby(["input_size", "algorithm"])["runtime_milliseconds"]
         .var().to_numpy()
     )
-    summary["cv"] = summary["std_ms"] / summary["mean_ms"]  # dispersión relativa
     save_excel(summary, "resumen_descriptivo.xlsx", "resumen")
     print("\n" + "=" * 88)
     print("ESTADÍSTICA DESCRIPTIVA: ¿CUÁNTO TARDAN LOS ALGORITMOS?".center(88))
@@ -209,7 +205,6 @@ def descriptive_analysis(per_sample):
     print("Variables: input_size = cantidad de elementos; runtime_milliseconds = tiempo de ejecución.")
     print("mean_ms es el promedio de tiempos; median_ms es el valor central; std_ms mide dispersión.")
     print("min_ms y max_ms muestran los extremos observados; variance_ms2 mide variabilidad al cuadrado.")
-    print("cv = std_ms / mean_ms es la dispersión relativa: permite comparar variabilidad entre algoritmos con tiempos muy distintos.")
     print("Se interpretan los tiempos de cada algoritmo por separado para cada tamaño de entrada.")
     print(summary.to_string(index=False, float_format=lambda x: f"{x:.6f}"))
     return summary
@@ -401,16 +396,14 @@ def main():
     print("2. Bondad de ajuste: se realiza en Excel con @RISK (prueba KS) sobre datos_para_RISK.xlsx, un grupo por columna.")
     print("3. Intervalos de confianza: muestran la incertidumbre del tiempo medio de cada algoritmo; intervalos que no se traslapan indican tiempos medios distintos.")
     print("4. Prueba F: compara varianzas de dos algoritmos mediante F y los valores críticos; requiere los supuestos de la prueba.")
-    print("5. No se incluye regresión lineal ni log-log porque el objetivo principal es comparar tiempos; no se añade un modelo que no sea necesario para responder la pregunta del proyecto.")
-    print("6. No se usa la prueba t pareada porque no se ha visto en el curso.")
-    print("7. Se realizan múltiples comparaciones (tres pares por cuatro tamaños); las conclusiones deben considerar que hay varias pruebas.")
+    print("5. Se realizan múltiples comparaciones (tres pares por cuatro tamaños); las conclusiones deben considerar que hay varias pruebas.")
     print("\nARCHIVOS GENERADOS")
     print("Todos los archivos de resultados se guardan dentro de:", OUT.resolve())
     print("- mediciones_individuales.xlsx: cada medición técnica")
     print("- medianas_por_muestra.xlsx: una mediana por algoritmo y muestra")
     print("- resumen_descriptivo.xlsx: medias, medianas, dispersión y extremos")
-    print("- intervalos_confianza.xlsx: IC 95% del tiempo medio (si CALCULAR_IC = True)")
-    print("- prueba_F_varianzas.xlsx: prueba F entre pares de algoritmos (si CALCULAR_F = True)")
+    print("- intervalos_confianza.xlsx: IC 95% del tiempo medio")
+    print("- prueba_F_varianzas.xlsx: prueba F entre pares de algoritmos")
     print("- datos_para_RISK.xlsx: tiempos, una columna por grupo, para ajustar en @RISK")
     print("- tres gráficos PNG descriptivos")
     print("\nFin del análisis.")
